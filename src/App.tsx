@@ -62,6 +62,7 @@ export function App() {
   const [boundDeviceId, setBoundDeviceId] = useState<string | null>(null);
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
   const [showPicker, setShowPicker] = useState(false);
+  const [deviceOffline, setDeviceOffline] = useState(false);
   const [text, setText] = useState("");
   const [notice, setNotice] = useState<NoticeState | null>(null);
   const [openGoalId, setOpenGoalId] = useState<string | null>(null);
@@ -69,30 +70,71 @@ export function App() {
 
   const socketRef = useRef<GoalFlowSocket | null>(null);
   const clientRefSeq = useRef(0);
+  // Mirror of boundDeviceId read INSIDE handleMessage. handleMessage is memoized once
+  // (deps: []), so it would otherwise close over the initial `null` forever. The `devices`
+  // handler needs the live bound id to tell "offline" from "unbound", and it must run its
+  // send/rememberDeviceId side effects exactly once — so it reads this ref rather than a
+  // functional-updater (which StrictMode double-invokes) to stay side-effect-safe.
+  const boundDeviceIdRef = useRef<string | null>(null);
 
   const bound = Boolean(boundDeviceId);
+
+  useEffect(() => {
+    boundDeviceIdRef.current = boundDeviceId;
+  }, [boundDeviceId]);
 
   const handleMessage = useCallback((frame: UiInboundMessage) => {
     switch (frame.type) {
       case "hello_ack": {
         const id = frame.device_id ?? "";
         if (id) {
+          // The cloud binds whatever id we sent — INCLUDING an offline one. So we bind
+          // optimistically and close the picker, but do NOT treat this as proof the
+          // device is online: the next `devices` frame is authoritative and re-opens the
+          // picker / heals if the id turns out to be absent (offline).
+          boundDeviceIdRef.current = id;
           setBoundDeviceId(id);
           rememberDeviceId(id);
           setShowPicker(false);
+          setDeviceOffline(false);
         } else {
           // Still unbound — await the `devices` list / picker.
+          boundDeviceIdRef.current = null;
           setBoundDeviceId(null);
         }
         break;
       }
       case "devices": {
         setDevices(frame.devices);
-        // If we aren't bound yet, surface the picker so the user can choose.
-        setBoundDeviceId((current) => {
-          if (!current) setShowPicker(true);
-          return current;
-        });
+        const boundId = boundDeviceIdRef.current;
+        if (!boundId) {
+          // Unbound — surface the picker so the user can choose (current behavior).
+          setShowPicker(true);
+          break;
+        }
+        // The cloud's `devices` list carries ONLY online devices (offline ones are
+        // OMITTED, never online:false). So a bound id missing from the list == our paired
+        // device agent is offline, and the cloud has silently bound us to an empty session.
+        const stillOnline = frame.devices.some((d) => d.device_id === boundId);
+        if (stillOnline) {
+          setDeviceOffline(false);
+          break;
+        }
+        if (frame.devices.length === 1) {
+          // Exactly one device online → auto-rebind to it. After the resulting hello_ack,
+          // boundDeviceId is that online id → present in the next `devices` list → this
+          // clears, so there is no rebind loop.
+          const target = frame.devices[0].device_id;
+          socketRef.current?.send({ type: "select_device", device_id: target });
+          rememberDeviceId(target);
+          setDeviceOffline(false);
+        } else {
+          // 0 or 2+ online devices → no single auto-heal target. Mark bound-but-offline
+          // (this both opens the picker over the composer and drives the reconnecting
+          // line, which is only shown for the empty case — see the status area).
+          setShowPicker(true);
+          setDeviceOffline(true);
+        }
         break;
       }
       case "goal_accepted": {
@@ -154,6 +196,7 @@ export function App() {
     socketRef.current?.send({ type: "select_device", device_id: deviceId });
     rememberDeviceId(deviceId);
     setShowPicker(false);
+    setDeviceOffline(false);
   }, []);
 
   const chatUiSrc = useMemo(
@@ -184,12 +227,22 @@ export function App() {
           ) : (
             <span className="status-device status-unbound"> · unbound</span>
           )}
+          {deviceOffline && devices.length === 0 && (
+            <span className="status-offline" aria-live="polite">
+              {" "}
+              · Paired device offline — reconnecting…
+            </span>
+          )}
         </div>
       </header>
 
       <main className="stage">
-        {showPicker && !bound ? (
-          <DevicePicker devices={devices} onSelect={selectDevice} />
+        {showPicker && (!bound || deviceOffline) ? (
+          <DevicePicker
+            devices={devices}
+            currentDeviceId={boundDeviceId}
+            onSelect={selectDevice}
+          />
         ) : (
           <section className="composer">
             <label className="composer-label" htmlFor="utterance">

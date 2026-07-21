@@ -109,6 +109,10 @@ body {
   color: var(--warn);
 }
 
+.status-offline {
+  color: var(--warn);
+}
+
 /* ---------- stage ---------- */
 .stage {
   display: flex;
