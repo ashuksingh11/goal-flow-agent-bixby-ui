@@ -32,8 +32,46 @@ surface so this client only receives its lifecycle frames (`hello_ack`, `goal_ac
 - No live board — that is `goal-flow-agent-board-ui`.
 - No Tizen packaging — the user ports this behaviour into the native Bixby app by hand.
 
+## Run
+
+A deliberately tiny Vite + React + TS app (mirrors the chat/board UIs).
+
+```bash
+npm install
+npm run dev        # serves on http://localhost:5175
+```
+
+It needs two siblings running:
+
+- the **cloud hub** on `:8000` (`goal-flow-cloud-agent`) — the WebSocket it connects to;
+- the **chat UI** on `:5173` (`goal-flow-agent-chat-ui`) — what the webview surrogate
+  iframe loads when a `chat_ui_open` arrives.
+
+A device agent must also be online so the UI can bind (one device auto-binds; several
+show the picker).
+
+**Config** (both optional — see `.env.example`):
+
+- `VITE_WS_URL` — the cloud hub. Default `ws://<page-host>:8000/ws`.
+- `VITE_CHAT_UI_URL` — the chat UI origin the iframe points at. Default
+  `http://localhost:5173`. The bound `device_id` is appended as `?device=<id>`.
+
+Ports across the surfaces: chat = 5173, board = 5174, **bixby = 5175**.
+
+Build (must pass clean before committing): `npm run build` (runs `tsc -b && vite build`).
+
+## What you'll see
+
+1. A text box + **Send** (the ASR stand-in) that sends `user_goal { text, client_ref }`.
+2. A **device picker** if more than one device is online (binds the socket — an unbound
+   UI can't send).
+3. A **"Bixby speaks:" banner** for inbound `notice` (out-of-scope or declined goals).
+4. A **webview surrogate** — an `<iframe>` at the chat UI — that MOUNTS on `chat_ui_open`
+   and UNMOUNTS on the matching `chat_ui_close`. Mount/unmount (not hide/show) so the
+   surrogate exercises the webview reload path a real Bixby's reset also has to survive.
+
 ## Status
 
-v4.1 scaffold. Implementation follows the v4.1 architecture doc (contract `surface`
+v4.1 — built. Implementation follows the v4.1 architecture doc (contract `surface`
 field + `chat_ui_open` / `chat_ui_close` frames). See the cloud-agent `CONTRACT.md` and
 `goal-flow-agents/docs/V4_PLAN.md`.
