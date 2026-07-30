@@ -76,7 +76,7 @@ export interface Notice {
   type: "notice";
   goal_id: string;
   /** "out_of_scope" (declined by the interpreter) or "declined" (cancelled gate). */
-  kind: "out_of_scope" | "declined";
+  kind: "out_of_scope" | "declined" | "updating_goals";
   message: string;
 }
 
