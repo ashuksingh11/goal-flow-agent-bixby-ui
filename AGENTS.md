@@ -18,8 +18,8 @@ It renders NONE of the planning/board content. The cloud **forks the `input` sur
 
 Siblings under `~/ashu/git/`: `goal-flow-cloud-agent` (Python hub, owns canonical
 `CONTRACT.md`), `goal-flow-agent-chat-ui` (the webview this opens),
-`goal-flow-agent-board-ui` (the ambient board). The v4.1 plan lives in
-`goal-flow-agents/docs/V4_PLAN.md`.
+`goal-flow-agent-board-ui` (the ambient board). The system design lives in
+`goal-flow-agents/docs/DESIGN.md` — the surface fork and the create-phase bracket are §6.
 
 ## Stack & run
 

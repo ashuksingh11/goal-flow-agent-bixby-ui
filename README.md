@@ -72,6 +72,6 @@ Build (must pass clean before committing): `npm run build` (runs `tsc -b && vite
 
 ## Status
 
-v4.1 — built. Implementation follows the v4.1 architecture doc (contract `surface`
-field + `chat_ui_open` / `chat_ui_close` frames). See the cloud-agent `CONTRACT.md` and
-`goal-flow-agents/docs/V4_PLAN.md`.
+Built. The contract's `surface` field plus the `chat_ui_open` / `chat_ui_close` bracket are
+what make this surface work — see the cloud agent's `CONTRACT.md` and
+`goal-flow-agents/docs/DESIGN.md` §6.
