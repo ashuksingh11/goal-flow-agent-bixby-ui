@@ -89,6 +89,8 @@ export interface Notice {
 export interface ChatUiOpen {
   type: "chat_ui_open";
   goal_id: string;
+  /** What the user said, verbatim (v7.4). Optional — a pre-v7.4 cloud omits it. */
+  goal_text?: string;
 }
 
 export interface ChatUiClose {
