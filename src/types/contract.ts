@@ -76,7 +76,7 @@ export interface Notice {
   type: "notice";
   goal_id: string;
   /** "out_of_scope" (declined by the interpreter) or "declined" (cancelled gate). */
-  kind: "out_of_scope" | "declined";
+  kind: "out_of_scope" | "declined" | "updating_goals";
   message: string;
 }
 
@@ -89,6 +89,8 @@ export interface Notice {
 export interface ChatUiOpen {
   type: "chat_ui_open";
   goal_id: string;
+  /** What the user said, verbatim (v7.4). Optional — a pre-v7.4 cloud omits it. */
+  goal_text?: string;
 }
 
 export interface ChatUiClose {
