@@ -16,3 +16,11 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/**
+ * v12 — is a Sarvam key configured? A BOOLEAN, substituted at serve time by the `define`
+ * in vite.config.ts, and deliberately not the key itself: `SARVAM_API_KEY` carries no
+ * `VITE_` prefix precisely so it can never reach this bundle. The mic button reads this
+ * to explain why it is disabled BEFORE anyone presses it and waits for a 401.
+ */
+declare const __STT_READY__: boolean;

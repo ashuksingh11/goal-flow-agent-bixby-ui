@@ -193,6 +193,105 @@ body {
   padding: 0.3rem 0;
 }
 
+/* ---------- v12: the mic ---------- */
+.mic {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-right: auto; /* mic left, Send right — they are not a pair of buttons */
+}
+
+.mic-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--panel-2);
+  color: var(--ink-dim);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 0.5rem 0.9rem;
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.mic-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.mic-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.mic-glyph {
+  font-size: 0.7rem;
+  line-height: 1;
+  color: var(--ink-faint);
+}
+
+.mic-btn.recording {
+  border-color: var(--danger);
+  color: var(--ink);
+}
+
+.mic-btn.recording .mic-glyph {
+  color: var(--danger);
+  animation: mic-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes mic-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* The one moving thing on this screen. Someone who has just been told to speak needs to
+   see the page reacting to their voice, or they say the sentence again louder. */
+.mic-level {
+  display: block;
+  width: 72px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--panel-2);
+  overflow: hidden;
+}
+
+.mic-level-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 60ms linear;
+}
+
+.mic-status {
+  color: var(--ink-faint);
+  font-size: 0.78rem;
+}
+
+/* A CLIENT-side failure. The `notice` banner is the cloud speaking; this is not. */
+.stt-error {
+  margin-top: 0.6rem;
+  color: var(--warn);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mic-btn.recording .mic-glyph {
+    animation: none;
+  }
+  .mic-level-fill {
+    transition: none;
+  }
+}
+
 /* ---------- device picker ---------- */
 .picker {
   background: var(--panel);

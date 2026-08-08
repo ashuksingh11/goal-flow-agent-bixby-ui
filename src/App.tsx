@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DevicePicker } from "./components/DevicePicker";
+import { MicButton } from "./components/MicButton";
 import {
   createGoalFlowSocket,
   getDeviceId,
@@ -15,7 +16,9 @@ import type { DeviceInfo, UiInboundMessage } from "./types/contract";
  *
  * It does exactly (and ONLY) what native Bixby does in dev:
  *  - a text box + Send stands in for on-device ASR → sends `user_goal` with a minted
- *    `client_ref`, declaring `surface:"input"` at the handshake;
+ *    `client_ref`, declaring `surface:"input"` at the handshake. v12 puts a real
+ *    microphone next to that box (Sarvam STT, see lib/stt.ts) — the transcript lands in
+ *    the box and the user still taps Send, so the wire behaviour is unchanged;
  *  - a device picker binds the socket (an unbound UI can't send);
  *  - a notice banner speaks the cloud's terminal `notice` ("Bixby speaks:");
  *  - a webview surrogate — an <iframe> at the chat UI — MOUNTED on `chat_ui_open` and
@@ -67,8 +70,13 @@ export function App() {
   const [notice, setNotice] = useState<NoticeState | null>(null);
   const [openGoalId, setOpenGoalId] = useState<string | null>(null);
   const [log, setLog] = useState<LogEntry[]>([]);
+  // v12 — a CLIENT-side failure (mic, proxy, Sarvam). Deliberately not routed through
+  // the `notice` banner: that banner is the cloud speaking, and borrowing it for a local
+  // problem would put words in the agent's mouth.
+  const [sttError, setSttError] = useState<string | null>(null);
 
   const socketRef = useRef<GoalFlowSocket | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const clientRefSeq = useRef(0);
   // Mirror of boundDeviceId read INSIDE handleMessage. handleMessage is memoized once
   // (deps: []), so it would otherwise close over the initial `null` forever. The `devices`
@@ -189,8 +197,22 @@ export function App() {
     socketRef.current?.send({ type: "user_goal", text: trimmed, client_ref: clientRef });
     setLog((entries) => [{ clientRef, text: trimmed }, ...entries].slice(0, 6));
     setNotice(null);
+    setSttError(null);
     setText("");
   }, [text, bound]);
+
+  const onTranscript = useCallback((transcript: string) => {
+    // REPLACES the box rather than appending. A second dictation after a bad one should
+    // not have to be hand-deleted first, and dictating on top of typed text is not a
+    // thing anyone means to do at a fridge.
+    setSttError(null);
+    setText(transcript);
+    const input = inputRef.current;
+    if (input) {
+      input.focus();
+      input.setSelectionRange(transcript.length, transcript.length);
+    }
+  }, []);
 
   const selectDevice = useCallback((deviceId: string) => {
     socketRef.current?.send({ type: "select_device", device_id: deviceId });
@@ -246,10 +268,11 @@ export function App() {
         ) : (
           <section className="composer">
             <label className="composer-label" htmlFor="utterance">
-              Speak to Bixby <span className="composer-hint">(ASR stand-in)</span>
+              Speak to Bixby <span className="composer-hint">(mic, or type)</span>
             </label>
             <textarea
               id="utterance"
+              ref={inputRef}
               className="composer-input"
               placeholder={bound ? "e.g. Plan our meals for the week" : "Bind a device to start…"}
               value={text}
@@ -264,10 +287,21 @@ export function App() {
                   Switch device
                 </button>
               )}
+              <MicButton
+                disabled={!bound}
+                onStart={() => setSttError(null)}
+                onTranscript={onTranscript}
+                onError={setSttError}
+              />
               <button className="send-btn" onClick={submitGoal} disabled={!bound || !text.trim()}>
                 Send
               </button>
             </div>
+            {sttError && (
+              <div className="stt-error" role="status">
+                {sttError}
+              </div>
+            )}
           </section>
         )}
 

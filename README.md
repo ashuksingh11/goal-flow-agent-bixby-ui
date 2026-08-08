@@ -50,19 +50,52 @@ It needs two siblings running:
 A device agent must also be online so the UI can bind (one device auto-binds; several
 show the picker).
 
-**Config** (both optional — see `.env.example`):
+**Config** (all optional — see `.env.example`):
 
 - `VITE_WS_URL` — the cloud hub. Default `ws://<page-host>:8000/ws`.
 - `VITE_CHAT_UI_URL` — the chat UI origin the iframe points at. Default
   `http://localhost:5173`. The bound `device_id` is appended as `?device=<id>`.
+- `SARVAM_API_KEY` — **v12**, enables the microphone. Note the *missing* `VITE_` prefix;
+  see below and `.env.example`.
 
 Ports across the surfaces: chat = 5173, board = 5174, **bixby = 5175**.
 
-Build (must pass clean before committing): `npm run build` (runs `tsc -b && vite build`).
+Before committing: `npm run build` (`tsc -b && vite build`) and `npm run gate`
+(`scripts/verify_stt.mjs` — offline, no key, no browser).
+
+## v12 — the surrogate listens (Sarvam speech-to-text)
+
+The composer has a **microphone**: tap it, speak, and ~1.5 s of silence ends the recording
+(a second tap ends it early; 15 s is a hard ceiling). The audio goes to Sarvam's
+`speech-to-text`, language auto-detected, and the transcript lands **in the text box** —
+you read it and tap **Send**. It never sends itself: a misheard word should cost a
+keystroke, not a full planning cycle.
+
+**This is surrogate fidelity, not a contract change.** Native Bixby does its own on-device
+ASR, which is Samsung's and not ours; nothing here reaches the wire. The cloud still
+receives exactly the `user_goal { text, client_ref }` it always did, and no other repo
+moves.
+
+Four facts worth knowing before you debug it:
+
+- **The audio is a hand-written 16 kHz WAV, not `MediaRecorder` output.** Sarvam rejects
+  WebM with a `400 Invalid file type` despite its docs listing WebM as supported
+  (measured), so PCM is captured off the audio graph and the container written directly.
+  Don't reintroduce `MediaRecorder` — `npm run gate` fails if you do.
+
+- **The key is never in the bundle.** `SARVAM_API_KEY` carries no `VITE_` prefix — that is
+  the mechanism, not a convention. `vite.config.ts` reads it in Node and proxies
+  same-origin `/api/stt` to Sarvam with the key attached, which also sidesteps CORS
+  entirely. The page gets a boolean (`__STT_READY__`), so a disabled mic can explain
+  itself before you press it.
+- **`npm run dev` only.** The proxy is the dev server's; under `vite preview` or a built
+  bundle `/api/stt` is a 404, and the error message says so.
+- **`localhost`, not the LAN address.** `getUserMedia` needs a secure context. `host: true`
+  also serves this app on a LAN IP, where the mic is *absent* rather than broken.
 
 ## What you'll see
 
-1. A text box + **Send** (the ASR stand-in) that sends `user_goal { text, client_ref }`.
+1. A text box + **mic** + **Send** that sends `user_goal { text, client_ref }`.
 2. A **device picker** if more than one device is online (binds the socket — an unbound
    UI can't send).
 3. A **"Bixby speaks:" banner** for inbound `notice` (out-of-scope or declined goals).
@@ -72,6 +105,6 @@ Build (must pass clean before committing): `npm run build` (runs `tsc -b && vite
 
 ## Status
 
-Built. The contract's `surface` field plus the `chat_ui_open` / `chat_ui_close` bracket are
-what make this surface work — see the cloud agent's `CONTRACT.md` and
-`goal-flow-agents/docs/DESIGN.md` §6.
+Built, through **v12** (speech input). The contract's `surface` field plus the
+`chat_ui_open` / `chat_ui_close` bracket are what make this surface work — see the cloud
+agent's `CONTRACT.md` and `goal-flow-agents/docs/DESIGN.md` §6.
