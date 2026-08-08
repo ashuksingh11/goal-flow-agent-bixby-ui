@@ -289,11 +289,29 @@ export function App() {
               on goal_id forces a fresh iframe (reload) per create phase, so this
               surrogate exercises the webview reload path.
             */}
+            {/*
+              v11 — `allow="autoplay"` DELEGATES the autoplay permission to the frame.
+
+              This is not optional and it is not a nicety. The chat UI is served from a
+              different port, so it is CROSS-ORIGIN to this page, and a cross-origin
+              iframe has autoplay disabled by Permissions Policy no matter how many
+              gestures the user has made: `audio.play()` inside it rejects with
+              NotAllowedError before user activation is even consulted. Without this
+              attribute the cloud's `speech` frame arrives, the chat UI tries to speak,
+              is refused, and falls back to its "Hear this" tap — which works, but hides
+              a permission problem behind a button.
+
+              THIS SURROGATE IS THE BEST CASE, NOT THE CONTRACT. On a real Hub, native
+              Bixby creates the WebView and we cannot set anything on it; the chat UI
+              must therefore still degrade gracefully, and does. See
+              goal-flow-agent-chat-ui/src/lib/speech.ts.
+            */}
             <iframe
               key={openGoalId}
               className="webview-frame"
               src={chatUiSrc}
               title="GoalFlow chat webview"
+              allow="autoplay"
             />
           </section>
         ) : (

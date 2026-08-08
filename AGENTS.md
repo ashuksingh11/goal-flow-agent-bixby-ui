@@ -35,6 +35,16 @@ Siblings under `~/ashu/git/`: `goal-flow-cloud-agent` (Python hub, owns canonica
   `chat_ui_close {goal_id}`, `notice`. Everything else is NOT delivered to this surface.
 - On `chat_ui_open` → open the chat UI (iframe/tab at the chat-ui origin, `?device=<id>`).
   On `chat_ui_close` → close it. On `notice` (out-of-scope) → show/speak it, no webview.
+- **v11: the webview iframe carries `allow="autoplay"`, and it is load-bearing.** The
+  chat UI is served from a different port, so it is CROSS-ORIGIN to this page and
+  Permissions Policy disables autoplay in it outright — `audio.play()` rejects before
+  user activation is even consulted. Without the attribute the cloud's `speech` frame
+  arrives, the chat UI is refused, and it falls back to a "Hear this" tap: working, but
+  it hides a permission problem behind a button. This surrogate is the BEST case, not
+  the contract — a real Hub's native Bixby creates the WebView and we can set nothing on
+  it, which is why the chat UI degrades on its own (`chat-ui/src/lib/speech.ts`).
+- This surface does **not** receive `speech` — the input fork does not deliver it, on
+  purpose. The voice belongs to the surface showing the card it describes.
 
 ## Status
 
